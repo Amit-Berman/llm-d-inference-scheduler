@@ -29,6 +29,10 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/llm-d/llm-d-inference-scheduler/pkg/telemetry"
 	"github.com/llm-d/llm-d-kv-cache/pkg/kvcache/kvblock"
 	"github.com/llm-d/llm-d-kv-cache/pkg/tokenization"
 	tokenizerTypes "github.com/llm-d/llm-d-kv-cache/pkg/tokenization/types"
@@ -329,7 +333,9 @@ func (r *vllmHTTPRenderer) postJSON(ctx context.Context, path string, body any, 
 
 	reqCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-
+	reqCtx, span := telemetry.Tracer().Start(reqCtx, "llm_d.render.request", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+	span.SetAttributes(attribute.String("llm_d.render.path", path))
 	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodPost, r.baseURL+path, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
