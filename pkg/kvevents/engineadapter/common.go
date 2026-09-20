@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vmihailenco/msgpack/v5"
-
 	"github.com/llm-d/llm-d-router/pkg/kvevents"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const (
@@ -77,8 +76,6 @@ func getHashAsUint64(raw any) (uint64, error) {
 	}
 }
 
-// decodeEvent decodes a single msgpack event, extracts the tag, and dispatches to the appropriate converter.
-// Used by SGLang adapter. The vLLM adapter uses its own single-pass []any decoder.
 func decodeEvent(
 	rawEventBytes []byte,
 	converters map[string]func([]byte) (kvevents.GenericEvent, error),
@@ -104,8 +101,6 @@ func decodeEvent(
 
 	return converter(rawEventBytes)
 }
-
-// convertBlockHashes converts raw hash values to uint64 slice.
 func convertBlockHashes(rawHashes []any) ([]uint64, error) {
 	blockHashes := make([]uint64, 0, len(rawHashes))
 	for _, rawHash := range rawHashes {
