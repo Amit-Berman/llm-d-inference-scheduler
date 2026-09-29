@@ -17,7 +17,9 @@ limitations under the License.
 package engineadapter //nolint:testpackage // Tests access unexported functions
 
 import (
-	"encoding/hex"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/llm-d/llm-d-router/pkg/kvevents"
@@ -319,8 +321,7 @@ func TestSGLangParseMessage_MapEncodedBlockStored_RealCaptureTwoBlocks(t *testin
 
 	// Captured payload; the leading 8-byte ZMQ sequence frame is not part of
 	// RawMessage.Payload and has already been stripped.
-	payload, err := hex.DecodeString(
-		"93cb41daad390224a3199187a474797065ab426c6f636b53746f726564ac626c6f636b5f68617368657392d3e0c3dfcd8eacb368cf7fde5eb5b613d806b1706172656e745f626c6f636b5f68617368c0a9746f6b656e5f696473dc0080cd0348cd5124cd04decd0108cd108dcdad5acd0739cd349dcd0108cd04accd0691cd01f8cd48d7cd0137cd261b0dcded71cd0691cd71820bcd0357cd1d870bce00014aa8cd8f48cd25d80bcd41ff0bcd2927cd079ccd1ca90bcd0143cd04decd0117cd0636cd07f1cd0176cd17270dcd1c71cd188ecd0468cd217dcd03d3cd1480cd1cdccd43b3ce000130cacd0143cd04decd0117cd0739cd6bebcd037ccd2e58cd04f1cd075acd0719cd06910dce00013ffdcd0117cd086bcd44dccd013bcd01a3cd075acd0143cd0117cd199fcdf9c3cd0749cd079ccd04510dcd07decd0dcfcd04decd0108cd108dcdad5acd0739cd349dcd0108cd04accd0691cd01f8cd48d7cd0137cd261b0bcd0246cd04a0cd0137cd0b5ccd0117cd0a8dcd44dc19cd0691cd71820bcd0357cd1d870bce00014aa8cd8f48cd25d80bcd41ff0bcd2927cd079ccd1ca90bcd0143cd348bcd0117cd0636cd07f1cd0137cd0117cd04accd017e100daa626c6f636b5f73697a6540a76c6f72615f6964c0a66d656469756da347505500")
+	payload, err := os.ReadFile("testdata/sglang_encoded_kvevent")
 	require.NoError(t, err)
 
 	podID, modelName, eventBatch, err := adapter.ParseMessage(&kvevents.RawMessage{
@@ -339,19 +340,15 @@ func TestSGLangParseMessage_MapEncodedBlockStored_RealCaptureTwoBlocks(t *testin
 	require.True(t, ok)
 	assert.Equal(t, []uint64{16196034758909408104, 9213906022183458822}, blockStored.BlockHashes)
 	assert.Equal(t, uint64(0), blockStored.ParentHash)
-	assert.Equal(t, []uint32{
-		840, 20772, 1246, 264, 4237, 44378, 1849, 13469, 264, 1196, 1681, 504,
-		18647, 311, 9755, 13, 60785, 1681, 29058, 11, 855, 7559, 11, 84648,
-		36680, 9688, 11, 16895, 11, 10535, 1948, 7337, 11, 323, 1246, 279,
-		1590, 2033, 374, 5927, 13, 7281, 6286, 1128, 8573, 979, 5248, 7388,
-		17331, 78026, 323, 1246, 279, 1849, 27627, 892, 11864, 1265, 1882, 1817,
-		1681, 13, 81917, 279, 2155, 17628, 315, 419, 1882, 323, 279, 6559,
-		63939, 1865, 1948, 1105, 13, 2014, 3535, 1246, 264, 4237, 44378, 1849,
-		13469, 264, 1196, 1681, 504, 18647, 311, 9755, 11, 582, 1184, 311,
-		2908, 279, 2701, 17628, 25, 1681, 29058, 11, 855, 7559, 11, 84648,
-		36680, 9688, 11, 16895, 11, 10535, 1948, 7337, 11, 323, 13451, 279,
-		1590, 2033, 311, 279, 1196, 382, 16, 13,
-	}, blockStored.Tokens)
+	rawTokens, err := os.ReadFile("testdata/sglang_encoded_kvevent_tokens")
+	require.NoError(t, err)
+	var wantTokens []uint32
+	for s := range strings.SplitSeq(strings.TrimSpace(string(rawTokens)), ",") {
+		n, err := strconv.ParseUint(s, 10, 32)
+		require.NoError(t, err)
+		wantTokens = append(wantTokens, uint32(n))
+	}
+	assert.Equal(t, wantTokens, blockStored.Tokens)
 	assert.Equal(t, 64, blockStored.BlockSize)
 	assert.Equal(t, "GPU", blockStored.DeviceTier)
 	assert.Nil(t, blockStored.LoraID)
