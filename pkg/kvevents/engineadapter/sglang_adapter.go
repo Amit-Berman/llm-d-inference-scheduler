@@ -86,7 +86,7 @@ func (s *SGLangAdapter) ParseMessage(msg *kvevents.RawMessage) (string, string, 
 
 	genericEvents := make([]kvevents.GenericEvent, len(batch.Events))
 	for i, rawEventBytes := range batch.Events {
-		genericEvent, err := s.decodeSGLangEvent(rawEventBytes)
+		genericEvent, err := decodeEvent(rawEventBytes, sglangMapEventToFields, s.eventConverters)
 		if err != nil {
 			return "", "", kvevents.EventBatch{}, fmt.Errorf("failed to decode SGLang event: %w", err)
 		}
@@ -100,46 +100,6 @@ func (s *SGLangAdapter) ParseMessage(msg *kvevents.RawMessage) (string, string, 
 	}
 
 	return podID, modelName, eventBatch, nil
-}
-
-// decodeSGLangEvent decodes a single SGLang event from msgpack bytes and dispatches
-// it to the matching converter. Map-encoded events are first normalized to the
-// positional []any layout the converters consume; each converter enforces its
-// own minimum-field count.
-func (s *SGLangAdapter) decodeSGLangEvent(rawEventBytes []byte) (kvevents.GenericEvent, error) {
-	var decoded any
-	if err := msgpack.Unmarshal(rawEventBytes, &decoded); err != nil {
-		return nil, fmt.Errorf("unmarshal event payload: %w", err)
-	}
-
-	var fields []any
-	switch ev := decoded.(type) {
-	case []any:
-		fields = ev
-	case map[string]any:
-		var err error
-		if fields, err = sglangMapEventToFields(ev); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("event is neither an array nor a map: %T", decoded)
-	}
-
-	if len(fields) < 1 {
-		return nil, fmt.Errorf("malformed tagged union: no tag")
-	}
-
-	tag, ok := fields[0].(string)
-	if !ok {
-		return nil, fmt.Errorf("event tag is not a string: %T", fields[0])
-	}
-
-	converter, exists := s.eventConverters[tag]
-	if !exists {
-		return nil, fmt.Errorf("unknown SGLang event tag: %s", tag)
-	}
-
-	return converter(fields)
 }
 
 // sglangMapEventToFields normalizes a map-encoded SGLang event to positional []any.
@@ -179,7 +139,7 @@ func sglangMapEventToFields(ev map[string]any) ([]any, error) {
 // SGLang field positions (array_like=True, tag=True), also produced when
 // normalizing the tagged-map form:
 //
-//	[0] tag                string            (consumed by decodeSGLangEvent)
+//	[0] tag                string            (consumed by decodeEvent)
 //	[1] block_hashes       []hash
 //	[2] parent_block_hash  hash|nil
 //	[3] token_ids          []uint32
