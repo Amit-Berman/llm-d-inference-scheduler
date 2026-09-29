@@ -108,7 +108,7 @@ func TestSGLangBlockStored_FullFields(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := adapter.decodeSGLangEvent(rawBytes)
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -141,7 +141,7 @@ func TestSGLangBlockStored_7Fields(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := adapter.decodeSGLangEvent(rawBytes)
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	require.NoError(t, err, "SGLang 7-field format should decode successfully")
 	require.NotNil(t, result)
 
@@ -172,7 +172,7 @@ func TestSGLangBlockStored_MinimalFields(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := adapter.decodeSGLangEvent(rawBytes)
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	require.NoError(t, err, "minimal 5-field BlockStored should decode successfully")
 	require.NotNil(t, result)
 
@@ -202,7 +202,7 @@ func TestSGLangBlockStored_TooFewFields(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	_, err = adapter.decodeSGLangEvent(rawBytes)
+	_, err = decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "too few fields")
 }
@@ -221,7 +221,7 @@ func TestSGLangBlockRemoved_FullFields(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := adapter.decodeSGLangEvent(rawBytes)
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -243,7 +243,7 @@ func TestSGLangBlockRemoved_NoMedium(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := adapter.decodeSGLangEvent(rawBytes)
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	require.NoError(t, err, "SGLang BlockRemoved without medium should decode successfully")
 	require.NotNil(t, result)
 
@@ -262,7 +262,7 @@ func TestSGLangAllBlocksCleared(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := adapter.decodeSGLangEvent(rawBytes)
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -404,7 +404,7 @@ func TestSGLangMapEncodedErrors(t *testing.T) {
 	}{
 		"unknown tag": {
 			event:   map[string]any{"type": "SomethingNew"},
-			wantErr: "unknown SGLang event tag: SomethingNew",
+			wantErr: "unknown event tag: SomethingNew",
 		},
 		"missing tag": {
 			event:   map[string]any{"block_hashes": []any{uint64(1)}},
@@ -434,8 +434,8 @@ func TestSGLangUnknownTag(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := adapter.decodeSGLangEvent(rawBytes)
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "unknown SGLang event tag")
+	assert.Contains(t, err.Error(), "unknown event tag")
 }
