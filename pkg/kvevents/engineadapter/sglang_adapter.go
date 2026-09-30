@@ -24,13 +24,6 @@ import (
 	"github.com/llm-d/llm-d-router/pkg/kvevents"
 )
 
-const (
-	// Minimum required fields, tag included (excluding trailing optional ones).
-	// See: sglang/srt/disaggregation/kv_events.py (BlockStored, BlockRemoved classes).
-	sglangBlockStoredMinFields  = 5 // tag + block_hashes + parent + tokens + block_size
-	sglangBlockRemovedMinFields = 2 // tag + block_hashes
-)
-
 // Field-name order of map-encoded SGLang events, mirroring the converters'
 // positional layouts below. "type" (the tag) is not listed here: it is read
 // separately by name and placed at position 0 by hand, then these names fill
@@ -144,14 +137,15 @@ func sglangMapEventToFields(ev map[string]any) ([]any, error) {
 //	[2] parent_block_hash  hash|nil
 //	[3] token_ids          []uint32
 //	[4] block_size         int
-//	[5] lora_id            int|nil    (optional, omit_defaults)
-//	[6] medium             string|nil (optional, omit_defaults)
+//	[5] lora_id            int|nil
+//	[6] medium             string|nil
 //
 // cache_salt and session_id are map-only fields and have no positional representation.
 // slot and are not carried into kvevents.BlockStoredEvent.
 func (s *SGLangAdapter) convertBlockStoredEvent(fields []any) (kvevents.GenericEvent, error) {
-	if len(fields) < sglangBlockStoredMinFields {
-		return nil, fmt.Errorf("BlockStored event has too few fields: %d (minimum %d)", len(fields), sglangBlockStoredMinFields)
+	minFields := len(sglangBlockStoredFieldOrder) + 1 // tag included
+	if len(fields) < minFields {
+		return nil, fmt.Errorf("BlockStored event has too few fields: %d (minimum %d)", len(fields), minFields)
 	}
 
 	rawHashes, ok := fields[1].([]any)
@@ -215,10 +209,11 @@ func (s *SGLangAdapter) convertBlockStoredEvent(fields []any) (kvevents.GenericE
 //
 //	[0] tag           string
 //	[1] block_hashes  []hash
-//	[2] medium        string|nil (optional, omit_defaults)
+//	[2] medium        string|nil
 func (s *SGLangAdapter) convertBlockRemovedEvent(fields []any) (kvevents.GenericEvent, error) {
-	if len(fields) < sglangBlockRemovedMinFields {
-		return nil, fmt.Errorf("BlockRemoved event has too few fields: %d (minimum %d)", len(fields), sglangBlockRemovedMinFields)
+	minFields := len(sglangBlockRemovedFieldOrder) + 1 // tag included
+	if len(fields) < minFields {
+		return nil, fmt.Errorf("BlockRemoved event has too few fields: %d (minimum %d)", len(fields), minFields)
 	}
 
 	rawHashes, ok := fields[1].([]any)
