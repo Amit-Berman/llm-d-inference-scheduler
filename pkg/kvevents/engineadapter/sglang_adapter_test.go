@@ -412,13 +412,15 @@ func TestSGLangMapEncodedErrors(t *testing.T) {
 			wantErr: "is not a string",
 		},
 	} {
-		payload, err := msgpack.Marshal([]any{0.0, []any{tc.event}, nil})
-		require.NoError(t, err, name)
-		_, _, _, err = adapter.ParseMessage(&kvevents.RawMessage{
-			Topic:   "kv@pod-1@m",
-			Payload: payload,
+		t.Run(name, func(t *testing.T) {
+			payload, err := msgpack.Marshal([]any{0.0, []any{tc.event}, nil})
+			require.NoError(t, err, name)
+			_, _, _, err = adapter.ParseMessage(&kvevents.RawMessage{
+				Topic:   "kv@pod-1@m",
+				Payload: payload,
+			})
+			require.ErrorContains(t, err, tc.wantErr, name)
 		})
-		require.ErrorContains(t, err, tc.wantErr, name)
 	}
 }
 
