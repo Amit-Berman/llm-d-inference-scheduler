@@ -162,20 +162,23 @@ func TestSGLangBlockStored_7Fields(t *testing.T) {
 func TestSGLangBlockStored_MinimalFields(t *testing.T) {
 	adapter := NewSGLangAdapter()
 
-	// Only 5 fields: tag + block_hashes + parent + tokens + block_size
+	// 7 fields (the current minimum): tag + block_hashes + parent + tokens +
+	// block_size + lora_id + medium, with lora_id and medium set to nil.
 	event := []any{
 		"BlockStored",
 		[]any{uint64(400)},
 		uint64(399),
 		[]uint32{10, 11},
 		128,
+		nil,
+		nil,
 	}
 
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
 	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
-	require.NoError(t, err, "minimal 5-field BlockStored should decode successfully")
+	require.NoError(t, err, "minimal 7-field BlockStored should decode successfully")
 	require.NotNil(t, result)
 
 	blockStored, ok := result.(*kvevents.BlockStoredEvent)
@@ -233,8 +236,31 @@ func TestSGLangBlockRemoved_FullFields(t *testing.T) {
 	assert.Equal(t, "cpu", blockRemoved.DeviceTier)
 }
 
-// TestSGLangBlockRemoved_NoMedium tests decoding without the trailing medium field.
-func TestSGLangBlockRemoved_NoMedium(t *testing.T) {
+// TestSGLangBlockRemoved_NilMedium tests decoding with medium set to nil.
+func TestSGLangBlockRemoved_NilMedium(t *testing.T) {
+	adapter := NewSGLangAdapter()
+
+	event := []any{
+		"BlockRemoved",
+		[]any{uint64(500), uint64(501)},
+		nil,
+	}
+
+	rawBytes, err := msgpack.Marshal(event)
+	require.NoError(t, err)
+
+	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
+	require.NoError(t, err, "SGLang BlockRemoved with nil medium should decode successfully")
+	require.NotNil(t, result)
+
+	blockRemoved, ok := result.(*kvevents.BlockRemovedEvent)
+	require.True(t, ok)
+	assert.Equal(t, []uint64{500, 501}, blockRemoved.BlockHashes)
+	assert.Equal(t, "", blockRemoved.DeviceTier, "medium should default to empty")
+}
+
+// TestSGLangBlockRemoved_TooFewFields tests that fewer than minimum fields returns an error.
+func TestSGLangBlockRemoved_TooFewFields(t *testing.T) {
 	adapter := NewSGLangAdapter()
 
 	event := []any{
@@ -245,14 +271,9 @@ func TestSGLangBlockRemoved_NoMedium(t *testing.T) {
 	rawBytes, err := msgpack.Marshal(event)
 	require.NoError(t, err)
 
-	result, err := decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
-	require.NoError(t, err, "SGLang BlockRemoved without medium should decode successfully")
-	require.NotNil(t, result)
-
-	blockRemoved, ok := result.(*kvevents.BlockRemovedEvent)
-	require.True(t, ok)
-	assert.Equal(t, []uint64{500, 501}, blockRemoved.BlockHashes)
-	assert.Equal(t, "", blockRemoved.DeviceTier, "medium should default to empty")
+	_, err = decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "too few fields")
 }
 
 // TestSGLangAllBlocksCleared tests decoding a valid AllBlocksCleared event.
