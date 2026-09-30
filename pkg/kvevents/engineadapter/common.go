@@ -21,8 +21,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/llm-d/llm-d-router/pkg/kvevents"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/llm-d/llm-d-router/pkg/kvevents"
 )
 
 const (
