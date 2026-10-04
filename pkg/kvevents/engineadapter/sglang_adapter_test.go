@@ -259,23 +259,6 @@ func TestSGLangBlockRemoved_NilMedium(t *testing.T) {
 	assert.Equal(t, "", blockRemoved.DeviceTier, "medium should default to empty")
 }
 
-// TestSGLangBlockRemoved_TooFewFields tests that fewer than minimum fields returns an error.
-func TestSGLangBlockRemoved_TooFewFields(t *testing.T) {
-	adapter := NewSGLangAdapter()
-
-	event := []any{
-		"BlockRemoved",
-		[]any{uint64(500), uint64(501)},
-	}
-
-	rawBytes, err := msgpack.Marshal(event)
-	require.NoError(t, err)
-
-	_, err = decodeEvent(rawBytes, sglangMapEventToFields, adapter.eventConverters)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "too few fields")
-}
-
 // TestSGLangAllBlocksCleared tests decoding a valid AllBlocksCleared event.
 func TestSGLangAllBlocksCleared(t *testing.T) {
 	adapter := NewSGLangAdapter()

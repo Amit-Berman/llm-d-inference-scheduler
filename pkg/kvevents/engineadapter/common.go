@@ -77,12 +77,11 @@ func getHashAsUint64(raw any) (uint64, error) {
 	}
 }
 
-// decodeEvent decodes a single msgpack event, normalizes map-encoded events to
-// positional fields via toFields, and dispatches to the matching converter.
-// toFields is optional: pass nil for an adapter that never receives
-// map-encoded events; a map payload with no toFields is a decode error.
-// Shared by the vLLM and SGLang adapters, which differ only in their
-// map-to-fields layout and converter set.
+// decodeEvent decodes a single msgpack event and dispatches it to the converter
+// for its tag. vLLM and SGLang send events either as positional arrays or as
+// field-name maps; toFields converts a map into the positional layout, so each
+// converter handles only that layout. The vLLM and SGLang adapters differ only
+// in toFields and their converter set.
 func decodeEvent(
 	rawEventBytes []byte,
 	toFields func(map[string]any) ([]any, error),
