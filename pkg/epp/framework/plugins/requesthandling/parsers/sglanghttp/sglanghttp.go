@@ -91,6 +91,7 @@ func (p *SGLangHTTPParser) Claims() fwkrh.Claims {
 // sgLangGenerateWire is the subset of /generate fields this parser reads.
 type sgLangGenerateWire struct {
 	InputIDs       json.RawMessage `json:"input_ids"`
+	CacheSalt      json.RawMessage `json:"cache_salt"`
 	ExtraKey       json.RawMessage `json:"extra_key"`
 	SamplingParams json.RawMessage `json:"sampling_params"`
 	Stream         bool            `json:"stream"`
@@ -122,9 +123,15 @@ func (p *SGLangHTTPParser) parseGenerateRequest(rawBody []byte) (*fwkrh.ParseRes
 		return nil, errors.New("invalid generate request: input_ids must be provided")
 	}
 
-	cacheSalt, err := parseCacheSalt(wire.ExtraKey)
+	cacheSalt, err := parseCacheSalt("cache_salt", wire.CacheSalt)
 	if err != nil {
 		return nil, fmt.Errorf("unsupported generate request: %w", err)
+	}
+	// SGLang releases without a cache_salt field carry the salt in extra_key.
+	if cacheSalt == "" {
+		if cacheSalt, err = parseCacheSalt("extra_key", wire.ExtraKey); err != nil {
+			return nil, fmt.Errorf("unsupported generate request: %w", err)
+		}
 	}
 	tokenIDs, err := parseInputIDs(wire.InputIDs)
 	if err != nil {
@@ -158,13 +165,13 @@ func hasJSONValue(data json.RawMessage) bool {
 	return len(data) > 0 && strings.TrimSpace(string(data)) != "null"
 }
 
-func parseCacheSalt(data json.RawMessage) (string, error) {
+func parseCacheSalt(field string, data json.RawMessage) (string, error) {
 	if !hasJSONValue(data) {
 		return "", nil
 	}
 	var value string
 	if err := json.Unmarshal(data, &value); err != nil {
-		return "", errors.New("extra_key must be a string")
+		return "", fmt.Errorf("%s must be a string", field)
 	}
 	return value, nil
 }
