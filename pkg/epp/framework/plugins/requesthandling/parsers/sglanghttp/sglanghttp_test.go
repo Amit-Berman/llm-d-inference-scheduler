@@ -140,9 +140,9 @@ func TestSGLangHTTPParser_ParseRequest(t *testing.T) {
 			},
 		},
 		{
-			name:    "text prompt with extra_key mapped to CacheSalt",
+			name:    "text prompt with cache_salt mapped to CacheSalt",
 			headers: map[string]string{":path": "/generate"},
-			body:    map[string]any{"text": "hello world", "extra_key": "salt-abc"},
+			body:    map[string]any{"text": "hello world", "cache_salt": "salt-abc"},
 			want: &fwkrh.InferenceRequestBody{
 				Generate: &fwkrh.GenerateRequest{Text: "hello world", CacheSalt: "salt-abc"},
 			},
