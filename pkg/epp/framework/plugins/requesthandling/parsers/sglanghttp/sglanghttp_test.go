@@ -132,14 +132,6 @@ func TestSGLangHTTPParser_ParseRequest(t *testing.T) {
 			},
 		},
 		{
-			name:    "extra_key mapped to cache_salt",
-			headers: map[string]string{":path": "/generate"},
-			body:    map[string]any{"input_ids": []any{10, 20}, "extra_key": "salt-abc"},
-			want: &fwkrh.InferenceRequestBody{
-				Generate: &fwkrh.GenerateRequest{TokenIDs: []uint32{10, 20}, CacheSalt: "salt-abc"},
-			},
-		},
-		{
 			name:    "cache_salt mapped to CacheSalt",
 			headers: map[string]string{":path": "/generate"},
 			body:    map[string]any{"input_ids": []any{10, 20}, "cache_salt": "salt-abc"},
@@ -148,19 +140,20 @@ func TestSGLangHTTPParser_ParseRequest(t *testing.T) {
 			},
 		},
 		{
-			name:    "cache_salt takes precedence over extra_key",
+			// SGLang does not publish extra_key in KV events, so it must never equal a published salt.
+			name:    "extra_key is kept as a separate namespace",
 			headers: map[string]string{":path": "/generate"},
-			body:    map[string]any{"input_ids": []any{10, 20}, "extra_key": "tenant-a", "cache_salt": "salt-abc"},
+			body:    map[string]any{"input_ids": []any{10, 20}, "extra_key": "salt-abc"},
 			want: &fwkrh.InferenceRequestBody{
-				Generate: &fwkrh.GenerateRequest{TokenIDs: []uint32{10, 20}, CacheSalt: "salt-abc"},
+				Generate: &fwkrh.GenerateRequest{TokenIDs: []uint32{10, 20}, CacheSalt: `["salt-abc",""]`},
 			},
 		},
 		{
-			name:    "empty cache_salt falls back to extra_key",
+			name:    "extra_key and cache_salt are combined",
 			headers: map[string]string{":path": "/generate"},
-			body:    map[string]any{"input_ids": []any{10, 20}, "cache_salt": "", "extra_key": "salt-abc"},
+			body:    map[string]any{"input_ids": []any{10, 20}, "extra_key": "tenant-a", "cache_salt": "salt-abc"},
 			want: &fwkrh.InferenceRequestBody{
-				Generate: &fwkrh.GenerateRequest{TokenIDs: []uint32{10, 20}, CacheSalt: "salt-abc"},
+				Generate: &fwkrh.GenerateRequest{TokenIDs: []uint32{10, 20}, CacheSalt: `["tenant-a","salt-abc"]`},
 			},
 		},
 		{
